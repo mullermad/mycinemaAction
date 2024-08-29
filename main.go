@@ -280,7 +280,7 @@ func executeSignup(variables map[string]interface{}) (response GraphQLResponse, 
         return
     }
 
-    resp, err := http.Post("http://localhost:8080/v1/graphql", "application/json", bytes.NewBuffer(reqBytes))
+    resp, err := http.Post("https://hasuraapp.hasura.app/v1/graphql", "application/json", bytes.NewBuffer(reqBytes))
     if err != nil {
         return
     }
@@ -322,7 +322,7 @@ func executeLogin(variables map[string]interface{}) (response GraphQLResponse, e
         return
     }
 
-    resp, err := http.Post("http://localhost:8080/v1/graphql", "application/json", bytes.NewBuffer(reqBytes))
+    resp, err := http.Post("https://hasuraapp.hasura.app/v1/graphql", "application/json", bytes.NewBuffer(reqBytes))
     if err != nil {
         return
     }
@@ -372,8 +372,7 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
     }
 
 
-// postgres://postgres:postgrespassword@postgres:5432/postgres
-// postgres://postgres:postgrespassword@postgres:5432/postgres
+
 
     // Create an io.Reader from the decoded data
     fileReader := strings.NewReader(string(data))
@@ -412,17 +411,6 @@ func main() {
     
 }
 
-// func main() {
-// 	router := mux.NewRouter()
-// 	router.HandleFunc("/", helloHandler)
-// 	router.HandleFunc("/signup", signupHandler).Methods("POST")
-// 	router.HandleFunc("/login", loginHandler).Methods("POST")
-// 	router.HandleFunc("/upload", uploadFileHandler).Methods("POST")
-
-	
-	// fmt.Println("Server is listening on port 5000...")
-	// log.Fatal(http.ListenAndServe(":5000", router))
-// }
 
 
 
