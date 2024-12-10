@@ -1,58 +1,38 @@
 package main
+
 // https://mycinemaaction.onrender.com/signup
 import (
+	"fmt"
+	"github.com/gorilla/mux"
+	"log"
+	"net/http"
 
-    "fmt"
-    "log"
-    "net/http"
-    "github.com/gorilla/mux"
-
-    "github.com/mullermad/myserver/handlers"
-    
+	"github.com/mullermad/myserver/handlers"
 )
 
-
-
 func helloHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprint(w, "Hello Muller, welcome to Go!")
+	fmt.Fprint(w, "Hello Muller, welcome to Go!")
 }
 
 func main() {
-   
-  
-    router := mux.NewRouter()
-    router.HandleFunc("/", helloHandler)
-    router.HandleFunc("/signup", handlers.SignupHandler).Methods("POST")
-    router.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
-    router.HandleFunc("/upload", handlers.UploadFileHandler)
-     // Define routes for event triggers.
-    // http.HandleFunc("/send_email", handleSignupEvent)
-        router.HandleFunc("/send_email", handlers.HandleSignupEvent).Methods("POST")
-         router.HandleFunc("/pay", handlers.PaymentsHandler).Methods("POST")
+
+	router := mux.NewRouter()
+	router.HandleFunc("/", helloHandler)
+	router.HandleFunc("/signup", handlers.SignupHandler).Methods("POST")
+	router.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
+	router.HandleFunc("/upload", handlers.UploadFileHandler)
+	// Define routes for event triggers.
+	// http.HandleFunc("/send_email", handleSignupEvent)
+	router.HandleFunc("/send_email", handlers.HandleSignupEvent).Methods("POST")
+	router.HandleFunc("/pay", handlers.PaymentsHandler).Methods("POST")
+	// http.HandleFunc("/webhook", WebhookHandler)
+	// router.HandleFunc("/webhook", handlers.WebhookHandler).Methods("POST")
 
 	fmt.Println("Server is listening on port 5000...")
 	log.Fatal(http.ListenAndServe(":5000", router))
-    	fmt.Println("Server is listening on port 5000...")
+	fmt.Println("Server is listening on port 5000...")
 
-    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // type ActionPayload struct {
 //     SessionVariables map[string]interface{} `json:"session_variables"`
@@ -99,11 +79,6 @@ func main() {
 //     Role     string `json:"role"` // Add role here
 // }
 
-
-
-
-
-
 // Define the structure for the incoming Hasura event payload.
 // type HasuraEvent struct {
 //     Event struct {
@@ -143,10 +118,9 @@ func main() {
 //         log.Fatal("Cloudinary environment variables are not set")
 //     }
 //     // fmt.Printf("cloudName %v apiKey %v apiSecret %v ",cloudName,apiKey,apiSecret)
-   
 
 //   cloudinaryClient, err = cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
-   
+
 //         if err != nil {
 //         log.Fatalf("Error initializing Cloudinary client: %v", err)
 //     }
@@ -181,7 +155,6 @@ func main() {
 //     data, _ := json.Marshal(result)
 //     w.Write(data)
 // }
-
 
 // Login handler to authenticate user and generate JWT
 // func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -309,7 +282,6 @@ func main() {
 //     return err == nil
 // }
 
-
 // // Function to generate JWT token
 // func generateJWT(userID, role string) (string, error) {
 //     claims := JWTClaims{
@@ -343,7 +315,6 @@ func main() {
 //     if err != nil {
 //         return
 //     }
-
 
 //     resp, err := http.Post("http://localhost:8080/v1/graphql", "application/json", bytes.NewBuffer(reqBytes))
 //     if err != nil {
@@ -475,10 +446,8 @@ func main() {
 //     w.Write(data)
 // }
 
-
-
 // func sendVerificationEmail(to, username string) error {
-    
+
 //     // Configuration
 //     smtpHost := "smtp.gmail.com"
 //     smtpPort := "587"
@@ -538,7 +507,6 @@ func main() {
 //         return
 //     }
 
- 
 //       // Extract email, password, role, user_id, and username from the event data.
 //     email := event.Event.Data.New.Email
 
@@ -555,4 +523,3 @@ func main() {
 //     w.Write([]byte("Verification email sent successfully"))
 //     log.Printf("Verification email sent to %s", email)
 // }
-

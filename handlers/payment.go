@@ -3,11 +3,13 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-// "fmt"
+
 	"github.com/google/uuid" // Import the UUID package
 	"github.com/joho/godotenv"
 )
@@ -38,6 +40,37 @@ type WebhookNotification struct {
 	Data    struct {
 		TxRef  string `json:"tx_ref"`
 		Amount string `json:"amount"`
+	} `json:"data"`
+}
+
+// Struct for verification response
+type VerificationResponse struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
+	Data    struct {
+		FirstName     string       `json:"first_name"`
+		LastName      string       `json:"last_name"`
+		Email         string       `json:"email"`
+		PhoneNumber   string       `json:"phone_number"`
+		Currency      string       `json:"currency"`
+		Amount        int          `json:"amount"` // Adjust type as needed
+		Charge        *interface{} `json:"charge"` // Pointer for optional fields
+		Mode          string       `json:"mode"`
+		Method        *string      `json:"method"` // Pointer for optional fields
+		Type          string       `json:"type"`
+		Status        string       `json:"status"`
+		Reference     *string      `json:"reference"` // Pointer for optional fields
+		TxRef         string       `json:"tx_ref"`
+		Customization struct {
+			Title       string  `json:"title"`
+			Description string  `json:"description"`
+			Logo        *string `json:"logo"`
+		} `json:"customization"`
+		Meta struct {
+			HideReceipt bool `json:"hide_receipt"`
+		} `json:"meta"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
 	} `json:"data"`
 }
 
@@ -106,8 +139,8 @@ func PaymentsHandler(w http.ResponseWriter, r *http.Request) {
 		"last_name":    "Demis",
 		"phone_number": hasuraRequest.Input.Arg1.PhoneNumber,
 		"tx_ref":       txRef,
-		"callback_url": "https://webhook.site/your-callback-url",
-		"return_url":   "http://localhost:3000",
+		"callback_url": "https://webhook.site/077164d6-29cb-40df-ba29-8a00e59a7e60",
+		"return_url":   "http://localhost:3000/successfulpay",
 		"customization": map[string]string{
 			"title":       "Payment",
 			"description": "I love online payments",
@@ -117,7 +150,6 @@ func PaymentsHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Marshal the payload into JSON
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
@@ -171,61 +203,71 @@ func PaymentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the response status is "success"
 	if chapaResponse.Status == "success" {
-		response := map[string]interface{}{
-			"message":     chapaResponse.Message,
-			"tx_ref":      txRef,
-			"checkoutUrl": chapaResponse.Data.CheckoutURL,
+		// Call the verification function
+		verificationResponse, err := VerifyTransaction(txRef)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+
+		// Check the verification response status
+		if verificationResponse.Status == "success" {
+			log.Printf("Verification Response after verification: %v", verificationResponse) // Log verification response for debugging
+
+			response := map[string]interface{}{
+				"message":      chapaResponse.Message,
+				"tx_ref":       txRef,
+				"checkoutUrl":  chapaResponse.Data.CheckoutURL,
+				"verification": verificationResponse,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+		} else {
+			http.Error(w, "Verification failed", http.StatusBadGateway)
+			log.Printf("Verification Response: %v", verificationResponse) // Log verification response for debugging
+		}
 	} else {
 		http.Error(w, "Error in payment initialization", http.StatusBadGateway)
 		log.Printf("Response: %s", string(responseBody)) // Log full response for debugging
 	}
+
 }
 
+// VerifyTransaction verifies the transaction with Chapa
+func VerifyTransaction(txRef string) (VerificationResponse, error) {
+	url := "https://api.chapa.co/v1/transaction/verify/" + txRef
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return VerificationResponse{}, err
+	}
 
+	chapaKey := os.Getenv("CHAPA_API_KEY")
+	// if chapaKey == "" {
+	// 	return nil, errors.New("CHAPA_API_KEY is not set in the environment")
+	// }
 
-// WebhookHandler handles webhook notifications from Chapa
-// func WebhookHandler(w http.ResponseWriter, r *http.Request) {
-// 	fmt.Println("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-// 	// Ensure the request method is POST
-// 	if r.Method != http.MethodPost {
-// 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-// 		return
-// 	}
+	// Set request headers
+	req.Header.Add("Authorization", "Bearer "+chapaKey)
+	req.Header.Add("Content-Type", "application/json")
 
-// 	// Read and log the request body for debugging
-// 	bodyBytes, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	log.Printf("Received webhook body: %s", bodyBytes)
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return VerificationResponse{}, err
+	}
+	defer resp.Body.Close()
 
-// 	// Unmarshal the incoming webhook data
-// 	var webhookResponse WebhookNotification
-// 	err = json.Unmarshal(bodyBytes, &webhookResponse)
-// 	if err != nil {
-// 		http.Error(w, "Invalid webhook format", http.StatusBadRequest)
-// 		log.Printf("Error decoding JSON: %v", err)
-// 		return
-// 	}
+	// Check for non-200 status codes
+	if resp.StatusCode != http.StatusOK {
+		return VerificationResponse{},
+			fmt.Errorf("failed to verify transaction: %s", resp.Status)
+	}
 
-// 	// Log the webhook response
-// 	log.Printf("Webhook Response: %+v", webhookResponse)
+	var verificationResponse VerificationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&verificationResponse); err != nil {
+		return VerificationResponse{}, err
+	}
 
-// 	// Handle payment verification based on the status
-// 	if webhookResponse.Status == "success" {
-// 		// Handle successful payment (update your database or application state)
-// 		log.Printf("Payment successful for tx_ref: %s, amount: %s", webhookResponse.Data.TxRef, webhookResponse.Data.Amount)
-// 		// Update your payment status in the database here
-// 		w.WriteHeader(http.StatusOK) // Respond with 200 OK
-// 		return
-// 	} else {
-// 		// Handle other statuses (failed, pending, etc.)
-// 		log.Printf("Payment failed or pending for tx_ref: %s, status: %s", webhookResponse.Data.TxRef, webhookResponse.Status)
-// 		w.WriteHeader(http.StatusBadRequest) // Respond with 400 Bad Request for failed or pending payments
-// 		return
-// 	}
-// }
+	return verificationResponse, nil
+}
